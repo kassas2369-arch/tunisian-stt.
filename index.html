@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <meta name="theme-color" content="#0f766e" />
-  <title>تحويل الكلام التونسي إلى نص</title>
+  <title>كلام تونسي ← نص + مساعد ذكي</title>
   <style>
     :root {
       --primary: #0f766e;
@@ -15,6 +15,8 @@
       --text: #134e4a;
       --border: #99f6e4;
       --shadow: 0 4px 20px rgba(15, 118, 110, 0.12);
+      --ai: #7c3aed;
+      --ai-light: #f5f3ff;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -24,118 +26,217 @@
       min-height: 100vh;
       line-height: 1.6;
     }
-    .app { max-width: 680px; margin: 0 auto; padding: 1.2rem; }
-    header { text-align: center; margin-bottom: 1.8rem; }
-    header h1 { font-size: 1.7rem; font-weight: 700; color: var(--primary); }
+    .app { max-width: 720px; margin: 0 auto; padding: 1.2rem; }
+    header { text-align: center; margin-bottom: 1.5rem; }
+    header h1 { font-size: 1.6rem; font-weight: 700; color: var(--primary); }
     .subtitle { color: #0f766e; opacity: 0.8; font-size: 0.95rem; margin-top: 0.3rem; }
-    .record-section {
-      background: var(--card); border-radius: 1.2rem; padding: 1.5rem;
-      box-shadow: var(--shadow); margin-bottom: 1.8rem; border: 1px solid var(--border);
+
+    .tabs {
+      display: flex; gap: 0.5rem; margin-bottom: 1.2rem; justify-content: center; flex-wrap: wrap;
     }
+    .tab {
+      padding: 0.55rem 1.1rem; border-radius: 999px; border: 2px solid var(--border);
+      background: white; font-weight: 600; cursor: pointer; font-family: inherit; font-size: 0.95rem;
+      color: var(--text); transition: all 0.2s;
+    }
+    .tab.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .tab.ai.active { background: var(--ai); border-color: var(--ai); }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .record-section, .pages-section, .ai-section {
+      background: var(--card); border-radius: 1.2rem; padding: 1.4rem;
+      box-shadow: var(--shadow); margin-bottom: 1.5rem; border: 1px solid var(--border);
+    }
+    .ai-section { border-color: #c4b5fd; }
+
     .status {
       text-align: center; font-weight: 600; padding: 0.6rem; border-radius: 0.6rem;
-      background: #ecfdf5; color: var(--primary); margin-bottom: 1.2rem; transition: all 0.3s;
+      background: #ecfdf5; color: var(--primary); margin-bottom: 1.1rem; transition: all 0.3s;
     }
     .status.recording { background: #fef2f2; color: var(--danger); animation: pulse 1.5s infinite; }
     .status.error { background: #fef2f2; color: var(--danger); }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-    .controls { display: flex; gap: 0.8rem; justify-content: center; margin-bottom: 1.2rem; flex-wrap: wrap; }
+
+    .controls, .actions { display: flex; gap: 0.7rem; justify-content: center; margin-bottom: 1.1rem; flex-wrap: wrap; }
     .btn {
-      display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.75rem 1.3rem;
-      border: none; border-radius: 0.8rem; font-size: 1rem; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.7rem 1.2rem;
+      border: none; border-radius: 0.8rem; font-size: 0.95rem; font-weight: 600;
       cursor: pointer; transition: all 0.2s; font-family: inherit;
     }
     .btn:disabled { opacity: 0.45; cursor: not-allowed; }
     .btn-primary { background: var(--primary); color: white; }
-    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
     .btn-danger { background: var(--danger); color: white; }
-    .btn-danger:hover:not(:disabled) { background: #b91c1c; }
     .btn-success { background: var(--success); color: white; }
-    .btn-success:hover:not(:disabled) { background: #15803d; }
     .btn-secondary { background: #e2e8f0; color: #334155; }
-    .btn-secondary:hover { background: #cbd5e1; }
-    .btn-small { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
-    .live-text-container { margin-bottom: 1.2rem; }
-    .live-text-container label { display: block; font-weight: 600; margin-bottom: 0.4rem; color: var(--primary); }
+    .btn-ai { background: var(--ai); color: white; }
+    .btn-ai:hover:not(:disabled) { background: #6d28d9; }
+    .btn-small { padding: 0.35rem 0.7rem; font-size: 0.82rem; }
+
+    .live-text-container { margin-bottom: 1rem; }
+    .live-text-container label { display: block; font-weight: 600; margin-bottom: 0.35rem; color: var(--primary); }
     .live-text {
-      min-height: 110px; max-height: 220px; overflow-y: auto; padding: 1rem;
+      min-height: 100px; max-height: 200px; overflow-y: auto; padding: 0.9rem;
       border: 2px solid var(--border); border-radius: 0.8rem; background: #f8fafc;
-      font-size: 1.15rem; line-height: 1.7; direction: rtl; white-space: pre-wrap; word-wrap: break-word;
+      font-size: 1.1rem; line-height: 1.7; direction: rtl; white-space: pre-wrap; word-wrap: break-word;
     }
     .live-text:empty:before { content: attr(placeholder); color: #94a3b8; }
-    .actions { display: flex; gap: 0.7rem; justify-content: center; flex-wrap: wrap; }
-    .pages-section {
-      background: var(--card); border-radius: 1.2rem; padding: 1.5rem;
-      box-shadow: var(--shadow); border: 1px solid var(--border);
-    }
-    .section-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
-    .section-header h2 { font-size: 1.25rem; color: var(--primary); }
-    .badge { background: var(--primary); color: white; font-size: 0.8rem; padding: 0.15rem 0.55rem; border-radius: 999px; font-weight: 600; }
-    .pages-list { display: flex; flex-direction: column; gap: 0.9rem; }
-    .empty { text-align: center; color: #94a3b8; padding: 1.5rem; }
-    .page-card { background: #f0fdfa; border: 1px solid var(--border); border-radius: 0.9rem; padding: 1rem; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.4rem; }
-    .page-date { font-size: 0.8rem; color: #64748b; }
-    .page-actions { display: flex; gap: 0.4rem; }
-    .page-text { font-size: 1.05rem; line-height: 1.65; white-space: pre-wrap; word-wrap: break-word; max-height: 120px; overflow: hidden; }
+
+    .section-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+    .section-header h2 { font-size: 1.2rem; color: var(--primary); }
+    .ai-section .section-header h2 { color: var(--ai); }
+    .badge { background: var(--primary); color: white; font-size: 0.78rem; padding: 0.12rem 0.5rem; border-radius: 999px; font-weight: 600; }
+
+    .pages-list { display: flex; flex-direction: column; gap: 0.8rem; }
+    .empty { text-align: center; color: #94a3b8; padding: 1.3rem; }
+    .page-card { background: #f0fdfa; border: 1px solid var(--border); border-radius: 0.9rem; padding: 0.9rem; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.35rem; }
+    .page-date { font-size: 0.78rem; color: #64748b; }
+    .page-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .page-text { font-size: 1rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; max-height: 110px; overflow: hidden; }
     .page-text.expanded { max-height: none; }
-    .page-footer { margin-top: 0.6rem; }
+
+    /* AI Chat */
+    .chat-box {
+      height: 280px; overflow-y: auto; background: var(--ai-light);
+      border: 1px solid #c4b5fd; border-radius: 0.9rem; padding: 0.9rem; margin-bottom: 0.9rem;
+    }
+    .msg { margin-bottom: 0.7rem; max-width: 90%; padding: 0.6rem 0.85rem; border-radius: 0.8rem; font-size: 0.95rem; line-height: 1.55; }
+    .msg.user { background: var(--ai); color: white; margin-right: auto; border-bottom-left-radius: 0.25rem; }
+    .msg.bot { background: white; border: 1px solid #ddd6fe; margin-left: auto; border-bottom-right-radius: 0.25rem; }
+    .msg.system { background: #fefce8; color: #854d0e; font-size: 0.85rem; text-align: center; max-width: 100%; }
+
+    .quick-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-bottom: 0.9rem; justify-content: center; }
+    .quick-btn {
+      padding: 0.4rem 0.75rem; border-radius: 999px; border: 1px solid #c4b5fd;
+      background: white; color: var(--ai); font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .quick-btn:hover { background: #ede9fe; }
+
+    .chat-input-row { display: flex; gap: 0.5rem; }
+    .chat-input-row input {
+      flex: 1; padding: 0.7rem 0.9rem; border: 2px solid #c4b5fd; border-radius: 0.8rem;
+      font-size: 0.95rem; font-family: inherit; direction: rtl;
+    }
+    .chat-input-row input:focus { outline: none; border-color: var(--ai); }
+
+    .api-row {
+      background: #faf5ff; border: 1px dashed #c4b5fd; border-radius: 0.7rem;
+      padding: 0.7rem; margin-bottom: 0.9rem; font-size: 0.85rem;
+    }
+    .api-row input {
+      width: 100%; padding: 0.45rem 0.6rem; border: 1px solid #c4b5fd; border-radius: 0.5rem;
+      margin-top: 0.35rem; font-family: inherit; direction: ltr; text-align: left;
+    }
+
     .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
     .modal.hidden { display: none; }
-    .modal-content { background: white; border-radius: 1rem; padding: 1.5rem; width: 100%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
-    .modal-content h3 { margin-bottom: 1rem; color: var(--primary); }
-    .modal-content textarea { width: 100%; padding: 0.9rem; border: 2px solid var(--border); border-radius: 0.7rem; font-size: 1.05rem; font-family: inherit; direction: rtl; resize: vertical; margin-bottom: 1rem; }
-    .modal-actions { display: flex; gap: 0.7rem; justify-content: flex-end; }
-    footer { text-align: center; margin-top: 2rem; font-size: 0.85rem; color: #64748b; }
-    .tip { background: #fefce8; border: 1px solid #fde047; border-radius: 0.7rem; padding: 0.8rem; margin-bottom: 1rem; font-size: 0.9rem; color: #854d0e; }
-    @media (max-width: 480px) { .app { padding: 0.8rem; } header h1 { font-size: 1.4rem; } .btn { padding: 0.65rem 1rem; font-size: 0.95rem; } }
+    .modal-content { background: white; border-radius: 1rem; padding: 1.4rem; width: 100%; max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); }
+    .modal-content h3 { margin-bottom: 0.9rem; color: var(--primary); }
+    .modal-content textarea { width: 100%; padding: 0.8rem; border: 2px solid var(--border); border-radius: 0.7rem; font-size: 1rem; font-family: inherit; direction: rtl; resize: vertical; margin-bottom: 0.9rem; }
+    .modal-actions { display: flex; gap: 0.6rem; justify-content: flex-end; }
+
+    footer { text-align: center; margin-top: 1.5rem; font-size: 0.82rem; color: #64748b; }
+    .tip { background: #fefce8; border: 1px solid #fde047; border-radius: 0.7rem; padding: 0.7rem; margin-bottom: 1rem; font-size: 0.88rem; color: #854d0e; }
+
+    @media (max-width: 480px) {
+      .app { padding: 0.8rem; }
+      header h1 { font-size: 1.35rem; }
+      .btn { padding: 0.6rem 1rem; font-size: 0.9rem; }
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <header>
       <h1>🎤 كلام تونسي ← نص</h1>
-      <p class="subtitle">كل صفحة مستقلة · اللهجة التونسية</p>
+      <p class="subtitle">+ مساعد ذكي · كل صفحة مستقلة</p>
     </header>
 
     <div class="tip" id="tipBox">
-      ⚠️ لو ما ظهرتش صلاحية الميكروفون: شغّل الملف عبر <b>http://localhost</b> مش مباشرة.
+      ⚠️ لو ما ظهرتش صلاحية الميكروفون: شغّل الملف عبر <b>http://localhost</b>
     </div>
 
-    <section class="record-section">
-      <div id="status" class="status">جاهز للتسجيل</div>
-      
-      <div class="controls">
-        <button id="btnStart" class="btn btn-primary"><span>🎙️</span> ابدأ التسجيل</button>
-        <button id="btnStop" class="btn btn-danger" disabled><span>⏹️</span> وقف</button>
-      </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="record">🎙️ التسجيل</button>
+      <button class="tab" data-tab="pages">📄 الصفحات</button>
+      <button class="tab ai" data-tab="ai">🤖 المساعد الذكي</button>
+    </div>
 
-      <div class="live-text-container">
-        <label>النص الحي:</label>
-        <div id="liveText" class="live-text" contenteditable="true" placeholder="الكلام يظهر هنا..."></div>
-      </div>
+    <!-- RECORD PANEL -->
+    <div id="panel-record" class="panel active">
+      <section class="record-section">
+        <div id="status" class="status">جاهز للتسجيل</div>
+        <div class="controls">
+          <button id="btnStart" class="btn btn-primary"><span>🎙️</span> ابدأ التسجيل</button>
+          <button id="btnStop" class="btn btn-danger" disabled><span>⏹️</span> وقف</button>
+        </div>
+        <div class="live-text-container">
+          <label>النص الحي:</label>
+          <div id="liveText" class="live-text" contenteditable="true" placeholder="الكلام يظهر هنا..."></div>
+        </div>
+        <div class="actions">
+          <button id="btnSave" class="btn btn-success" disabled>💾 احفظ كصفحة</button>
+          <button id="btnClear" class="btn btn-secondary">🗑️ امسح</button>
+          <button id="btnSendToAI" class="btn btn-ai">🤖 أرسل للمساعد</button>
+        </div>
+      </section>
+    </div>
 
-      <div class="actions">
-        <button id="btnSave" class="btn btn-success" disabled>💾 احفظ كصفحة جديدة</button>
-        <button id="btnClear" class="btn btn-secondary">🗑️ امسح</button>
-      </div>
-    </section>
+    <!-- PAGES PANEL -->
+    <div id="panel-pages" class="panel">
+      <section class="pages-section">
+        <div class="section-header">
+          <h2>الصفحات المحفوظة</h2>
+          <span id="pageCount" class="badge">0</span>
+        </div>
+        <div id="pagesList" class="pages-list">
+          <p class="empty">ما عندك حتى صفحة محفوظة بعد</p>
+        </div>
+      </section>
+    </div>
 
-    <section class="pages-section">
-      <div class="section-header">
-        <h2>الصفحات المحفوظة</h2>
-        <span id="pageCount" class="badge">0</span>
-      </div>
-      <div id="pagesList" class="pages-list">
-        <p class="empty">ما عندك حتى صفحة محفوظة بعد</p>
-      </div>
-    </section>
+    <!-- AI PANEL -->
+    <div id="panel-ai" class="panel">
+      <section class="ai-section">
+        <div class="section-header">
+          <h2>🤖 المساعد الذكي</h2>
+        </div>
+
+        <div class="api-row">
+          <label>مفتاح API (اختياري - OpenAI أو أي خدمة متوافقة):</label>
+          <input type="password" id="apiKey" placeholder="sk-... (يتحفظ محلياً فقط)" />
+          <small style="display:block;margin-top:0.3rem;color:#6b7280;">لو ما عندكش مفتاح، المساعد يشتغل بوضع بسيط محلي.</small>
+        </div>
+
+        <div class="quick-actions">
+          <button class="quick-btn" data-action="summarize">📝 لخّص النص</button>
+          <button class="quick-btn" data-action="correct">✏️ صحّح النص</button>
+          <button class="quick-btn" data-action="title">🏷️ اقترح عنوان</button>
+          <button class="quick-btn" data-action="ideas">💡 أفكار من النص</button>
+          <button class="quick-btn" data-action="tunisian">🇹🇳سي أوضح</button>
+        </div>
+
+        <div class="chat-box" id="chatBox">
+          <div class="msg system">أهلاً! أنا المساعد الذكي. اكتب سؤالك أو استعمل الأزرار السريعة.</div>
+        </div>
+
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="اكتب سؤالك هنا..." />
+          <button id="btnSendChat" class="btn btn-ai">إرسال</button>
+        </div>
+      </section>
+    </div>
 
     <footer>
-      <p>البيانات تبقى على جهازك فقط · يحتاج إنترنت للتعرف على الكلام</p>
+      <p>البيانات تبقى على جهازك · المساعد يستعمل مفتاحك الخاص (لو حطيته)</p>
     </footer>
   </div>
 
+  <!-- Edit Modal -->
   <div id="editModal" class="modal hidden">
     <div class="modal-content">
       <h3>تعديل الصفحة</h3>
@@ -149,16 +250,20 @@
 
   <script>
     const STORAGE_KEY = "tunisian_stt_pages_v1";
+    const API_KEY_STORAGE = "tunisian_stt_api_key";
+
     let recognition = null;
     let isRecording = false;
     let finalTranscript = "";
     let currentEditId = null;
-    let micStream = null;
+    let contextText = ""; // النص اللي نرسلوه للمساعد
 
+    // DOM
     const btnStart = document.getElementById("btnStart");
     const btnStop = document.getElementById("btnStop");
     const btnSave = document.getElementById("btnSave");
     const btnClear = document.getElementById("btnClear");
+    const btnSendToAI = document.getElementById("btnSendToAI");
     const liveText = document.getElementById("liveText");
     const statusEl = document.getElementById("status");
     const pagesList = document.getElementById("pagesList");
@@ -168,14 +273,33 @@
     const btnUpdate = document.getElementById("btnUpdate");
     const btnCancelEdit = document.getElementById("btnCancelEdit");
     const tipBox = document.getElementById("tipBox");
+    const chatBox = document.getElementById("chatBox");
+    const chatInput = document.getElementById("chatInput");
+    const btnSendChat = document.getElementById("btnSendChat");
+    const apiKeyInput = document.getElementById("apiKey");
 
-    // إخفاء النصيحة لو الصفحة شغالة على localhost أو https
+    // Tabs
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+      });
+    });
+
     if (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") {
       tipBox.style.display = "none";
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // Load API key
+    apiKeyInput.value = localStorage.getItem(API_KEY_STORAGE) || "";
+    apiKeyInput.addEventListener("change", () => {
+      localStorage.setItem(API_KEY_STORAGE, apiKeyInput.value.trim());
+    });
 
+    // ===== Speech Recognition =====
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
       statusEl.textContent = "المتصفح ما يدعمش التعرف على الكلام. جرب Chrome أو Edge";
       statusEl.classList.add("error");
@@ -197,12 +321,11 @@
       };
 
       recognition.onresult = (event) => {
-        let interim = "";
-        let final = "";
+        let interim = "", final = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) final += transcript + " ";
-          else interim += transcript;
+          const t = event.results[i][0].transcript;
+          if (event.results[i].isFinal) final += t + " ";
+          else interim += t;
         }
         if (final) finalTranscript += final;
         liveText.textContent = finalTranscript + interim;
@@ -210,12 +333,10 @@
       };
 
       recognition.onerror = (event) => {
-        console.error("Speech error:", event.error);
         let msg = "خطأ في التسجيل";
-        if (event.error === "no-speech") msg = "ما سمعتش كلام. جرب مرة أخرى";
-        else if (event.error === "not-allowed") msg = "❌ لازم تسمح بالميكروفون من إعدادات المتصفح";
-        else if (event.error === "network") msg = "مشكلة شبكة (التعرف يحتاج إنترنت)";
-        else if (event.error === "aborted") msg = "تم إيقاف التسجيل";
+        if (event.error === "no-speech") msg = "ما سمعتش كلام";
+        else if (event.error === "not-allowed") msg = "❌ لازم تسمح بالميكروفون";
+        else if (event.error === "network") msg = "مشكلة شبكة";
         statusEl.textContent = msg;
         statusEl.classList.remove("recording");
         statusEl.classList.add("error");
@@ -223,29 +344,18 @@
       };
 
       recognition.onend = () => {
-        if (isRecording) {
-          try { recognition.start(); } catch (e) { stopRecording(); }
-        }
+        if (isRecording) { try { recognition.start(); } catch(e) { stopRecording(); } }
       };
     }
 
-    // طلب صلاحية الميكروفون أولاً (هذا اللي يخلي النافذة تظهر)
     async function requestMicPermission() {
       try {
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // نوقف الـ stream بعد ما ناخذو الصلاحية (ما نحتاجوش للتسجيل)
-        micStream.getTracks().forEach(track => track.stop());
-        micStream = null;
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        stream.getTracks().forEach(t => t.stop());
         return true;
       } catch (err) {
-        console.error("Mic permission error:", err);
-        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          statusEl.textContent = "❌ رفضت صلاحية الميكروفون. روح لإعدادات المتصفح وسمح بها";
-        } else if (err.name === "NotFoundError") {
-          statusEl.textContent = "❌ ما لقاش ميكروفون متصل";
-        } else {
-          statusEl.textContent = "❌ مشكلة في الوصول للميكروفون: " + err.message;
-        }
+        if (err.name === "NotAllowedError") statusEl.textContent = "❌ رفضت صلاحية الميكروفون";
+        else statusEl.textContent = "❌ مشكلة ميكروفون: " + err.message;
         statusEl.classList.add("error");
         return false;
       }
@@ -253,31 +363,19 @@
 
     btnStart.addEventListener("click", async () => {
       if (!recognition) return;
-
       statusEl.textContent = "جاري طلب صلاحية الميكروفون...";
-      statusEl.classList.remove("error");
-
-      const allowed = await requestMicPermission();
-      if (!allowed) return;
-
+      if (!(await requestMicPermission())) return;
       finalTranscript = liveText.textContent.trim() ? liveText.textContent + " " : "";
-      try {
-        recognition.start();
-      } catch (e) {
-        statusEl.textContent = "ما نجمش نبدأ التسجيل: " + e.message;
+      try { recognition.start(); } catch(e) {
+        statusEl.textContent = "ما نجمش نبدأ: " + e.message;
         statusEl.classList.add("error");
       }
     });
 
     btnStop.addEventListener("click", stopRecording);
-
     function stopRecording() {
       isRecording = false;
-      if (recognition) { try { recognition.stop(); } catch (e) {} }
-      if (micStream) {
-        micStream.getTracks().forEach(t => t.stop());
-        micStream = null;
-      }
+      if (recognition) try { recognition.stop(); } catch(e) {}
       statusEl.textContent = "تم الإيقاف";
       statusEl.classList.remove("recording");
       btnStart.disabled = false;
@@ -297,113 +395,59 @@
       const text = liveText.textContent.trim();
       if (!text) return;
       const pages = getPages();
-      pages.unshift({
-        id: Date.now().toString(),
-        text: text,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+      pages.unshift({ id: Date.now().toString(), text, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
       savePages(pages);
       finalTranscript = "";
       liveText.textContent = "";
       btnSave.disabled = true;
-      statusEl.textContent = "✅ تم حفظ الصفحة الجديدة";
-      statusEl.classList.remove("error");
+      statusEl.textContent = "✅ تم حفظ الصفحة";
       renderPages();
     });
 
-    function getPages() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-      catch { return []; }
-    }
+    btnSendToAI.addEventListener("click", () => {
+      const text = liveText.textContent.trim();
+      if (!text) {
+        statusEl.textContent = "ما فماش نص باش نرسلو";
+        statusEl.classList.add("error");
+        return;
+      }
+      contextText = text;
+      document.querySelector('.tab[data-tab="ai"]').click();
+      addMsg("user", "النص اللي بعثتوه:\n" + text.slice(0, 300) + (text.length > 300 ? "..." : ""));
+      addMsg("system", "النص جاهز. استعمل الأزرار السريعة أو اكتب سؤالك.");
+    });
+
+    // ===== Storage =====
+    function getPages() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } }
     function savePages(pages) { localStorage.setItem(STORAGE_KEY, JSON.stringify(pages)); }
 
     function renderPages() {
       const pages = getPages();
       pageCount.textContent = pages.length;
-      if (pages.length === 0) {
+      if (!pages.length) {
         pagesList.innerHTML = '<p class="empty">ما عندك حتى صفحة محفوظة بعد</p>';
         return;
       }
-      pagesList.innerHTML = pages.map(page => {
-        const dateStr = new Date(page.createdAt).toLocaleDateString("ar-TN", {
-          year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
-        });
-        return `
-          <div class="page-card">
-            <div class="page-header">
-              <span class="page-date">${dateStr}</span>
-              <div class="page-actions">
-                <button class="btn btn-small btn-secondary" onclick="copyPage('${page.id}')">نسخ</button>
-                <button class="btn btn-small btn-secondary" onclick="editPage('${page.id}')">تعديل</button>
-                <button class="btn btn-small btn-danger" onclick="deletePage('${page.id}')">حذف</button>
-              </div>
+      pagesList.innerHTML = pages.map(p => {
+        const d = new Date(p.createdAt).toLocaleDateString("ar-TN", { year:"numeric", month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
+        return `<div class="page-card">
+          <div class="page-header">
+            <span class="page-date">${d}</span>
+            <div class="page-actions">
+              <button class="btn btn-small btn-ai" onclick="sendPageToAI('${p.id}')">🤖</button>
+              <button class="btn btn-small btn-secondary" onclick="copyPage('${p.id}')">نسخ</button>
+              <button class="btn btn-small btn-secondary" onclick="editPage('${p.id}')">تعديل</button>
+              <button class="btn btn-small btn-danger" onclick="deletePage('${p.id}')">حذف</button>
             </div>
-            <div class="page-text" id="text-\( {page.id}"> \){escapeHtml(page.text)}</div>
-            <div class="page-footer">
-              <button class="btn btn-small btn-secondary" onclick="toggleExpand('${page.id}')">عرض الكل</button>
-            </div>
-          </div>`;
+          </div>
+          <div class="page-text" id="text-\( {p.id}"> \){escapeHtml(p.text)}</div>
+          <div style="margin-top:0.5rem"><button class="btn btn-small btn-secondary" onclick="toggleExpand('${p.id}')">عرض الكل</button></div>
+        </div>`;
       }).join("");
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement("div");
-      div.textContent = text;
-      return div.innerHTML;
-    }
+    function escapeHtml(t) { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 
-    window.copyPage = function(id) {
-      const page = getPages().find(p => p.id === id);
-      if (page) {
-        navigator.clipboard.writeText(page.text).then(() => {
-          statusEl.textContent = "تم النسخ ✓";
-          setTimeout(() => { statusEl.textContent = "جاهز للتسجيل"; statusEl.classList.remove("error"); }, 1500);
-        });
-      }
-    };
-
-    window.deletePage = function(id) {
-      if (!confirm("متأكد تحب تحذف الصفحة هاذي؟")) return;
-      savePages(getPages().filter(p => p.id !== id));
-      renderPages();
-      statusEl.textContent = "تم الحذف";
-    };
-
-    window.editPage = function(id) {
-      const page = getPages().find(p => p.id === id);
-      if (!page) return;
-      currentEditId = id;
-      editText.value = page.text;
-      editModal.classList.remove("hidden");
-    };
-
-    window.toggleExpand = function(id) {
-      const el = document.getElementById("text-" + id);
-      if (el) el.classList.toggle("expanded");
-    };
-
-    btnUpdate.addEventListener("click", () => {
-      if (!currentEditId) return;
-      const pages = getPages();
-      const idx = pages.findIndex(p => p.id === currentEditId);
-      if (idx !== -1) {
-        pages[idx].text = editText.value.trim();
-        pages[idx].updatedAt = new Date().toISOString();
-        savePages(pages);
-        renderPages();
-      }
-      editModal.classList.add("hidden");
-      currentEditId = null;
-      statusEl.textContent = "تم التحديث ✓";
-    });
-
-    btnCancelEdit.addEventListener("click", () => {
-      editModal.classList.add("hidden");
-      currentEditId = null;
-    });
-
-    renderPages();
-  </script>
-</body>
-</html>
+    window.copyPage = id => {
+      const p = getPages().find(x => x.id === id);
+      if (p) navigator.clipboard.writeText(p.text).then
